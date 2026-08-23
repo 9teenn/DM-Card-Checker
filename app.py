@@ -9,7 +9,8 @@ import re
 # 0. CONFIGURATIONS (ตั้งค่าตัวแปรคงที่ไว้ที่เดียว)
 # ==========================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZxMlGzqgFbyEEfEcv3HKVG5DGHOrlVWuHvI6nnSUcg5c9e3lNf4I2vU5WP8AMhT5gMr_7Oq7yOP3m/pub?output=csv"
-ZENROWS_API_KEY = "YOUR_ZENROWS_API_KEY" #87f57fba67309f332791dbb814dd096c90d2aa0e
+ZENROWS_API_KEY = st.secrets["ZENROWS_API_KEY"] 
+
 EXCHANGE_RATE = 0.25
 
 # ==========================================
@@ -83,33 +84,46 @@ def scrape_yuyutei_full_box(box_code):
             link_element = name_element.find_parent('a')
             card_link = urljoin("https://yuyu-tei.jp", link_element.get('href')) if link_element else url
             
-            price_element = container.select_one('strong.text-end')
-            if not price_element: continue
+            # 🎯 ระบบสแกนราคา "ตั้งต้น" เสมอ!
+            price_digits = ""
+            
+            # 1. พยายามหาราคาตั้งต้น (ราคาขีดฆ่าเวลาเซลล์) ก่อน
+            original_price_el = container.select_one('small.d-block.text-end.fs-9')
+            
+            if original_price_el:
+                # เจอคลาสนี้ แปลว่าจัดเซลล์! เราจะดูดตัวเลขจากตัวที่ขีดฆ่ามาเป็นราคาหลัก
+                price_digits = "".join([c for c in original_price_el.text if c.isdigit()])
+            else:
+                # ไม่เจอ แปลว่าเป็นราคาปกติ ให้ดึงจากป้ายราคาปกติ
+                main_price_el = container.select_one('strong.text-end')
+                if main_price_el:
+                    price_digits = "".join([c for c in main_price_el.text if c.isdigit()])
+                    
+            if not price_digits: 
+                continue
                 
-            price_digits = "".join([c for c in price_element.text if c.isdigit()])
             img_element = container.select_one('img.card.img-fluid')
             img_src = urljoin("https://yuyu-tei.jp", img_element.get('src', '')) if img_element else None
             
-            # 🎯 ระบบเช็คสต็อก Yuyutei แบบใหม่ตามที่นายแกะมา!
-            stock_status = "มีสินค้า" # ตั้งค่าเริ่มต้นไว้ก่อน
+            # 🎯 ระบบเช็คสต็อก Yuyutei (Zaiko)
+            stock_status = "มีสินค้า"
             zaiko_label = container.select_one('.cart_sell_zaiko')
             if zaiko_label and '×' in zaiko_label.text:
                 stock_status = "สินค้าหมด"
             
-            if price_digits:
-                item_info = {
-                    "รูปภาพ": img_src, 
-                    "ร้านค้า": "Yuyutei", 
-                    "ชื่อที่แสดง": card_name,
-                    "สภาพการ์ด": classify_condition(card_name),
-                    "ราคา (เยน)": int(price_digits), 
-                    "สถานะ": stock_status, # อัปเดตตัวแปรตรงนี้
-                    "ลิงก์สินค้า": card_link
-                }
-                
-                if clean_num not in box_prices:
-                    box_prices[clean_num] = []
-                box_prices[clean_num].append(item_info)
+            item_info = {
+                "รูปภาพ": img_src, 
+                "ร้านค้า": "Yuyutei", 
+                "ชื่อที่แสดง": card_name,
+                "สภาพการ์ด": classify_condition(card_name),
+                "ราคา (เยน)": int(price_digits), 
+                "สถานะ": stock_status, 
+                "ลิงก์สินค้า": card_link
+            }
+            
+            if clean_num not in box_prices:
+                box_prices[clean_num] = []
+            box_prices[clean_num].append(item_info)
                 
         return box_prices
     except Exception as e:
@@ -183,17 +197,16 @@ def scrape_bigweb(card_name, card_num):
 @st.cache_data(ttl=300)
 def scrape_dorasuta(card_name, card_num, card_rarity="", box_code=""):
     search_keyword = card_name.strip()
-    raw_num = card_num.strip() # เอาแบบดิบๆ ไม่ตัดวงเล็บ
+    raw_num = card_num.strip()
     target_rarity = card_rarity.strip().upper()
     
-    # ตัวนี้โดนตัดชื่อทิ้ง เอาไว้ใช้เฉพาะตอนค้นหา "วิธีที่ 2" เท่านั้น
     clean_search_core = search_keyword.split('［')[0].split('[')[0].split('＜')[0].split('<')[0].split('(')[0].split('（')[0].strip()
     
-    # 🎯 แก้ตรงนี้! ใช้ชื่อเต็ม (search_keyword) + รหัสเต็ม (raw_num)
-    primary_query = f"{search_keyword}{raw_num}"
+    # 🎯 อัปเดต: เคาะเว้นวรรค 1 ที ระหว่างชื่อและรหัสการ์ด เพื่อให้ระบบค้นหาเว็บญี่ปุ่นทำงานได้ถูกต้อง!
+    primary_query = f"{search_keyword} {raw_num}"
     encoded_primary = quote(primary_query, safe='!<>/?()（）') 
     fallback_url = f"https://dorasuta.jp/duelmasters/product-list?kw={encoded_primary}"
-    # ดึง ZENROWS_API_KEY จากด้านบนสุดของไฟล์ 
+    
     if not ZENROWS_API_KEY or ZENROWS_API_KEY == "YOUR_ZENROWS_API_KEY":
         return [{"รูปภาพ": None, "ร้านค้า": "Dorasuta", "ชื่อที่แสดง": "API Key Error", "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "ตรวจสอบผ่านเว็บ", "ลิงก์สินค้า": fallback_url}]
 
@@ -265,11 +278,10 @@ def scrape_dorasuta(card_name, card_num, card_rarity="", box_code=""):
     # 🚀 [วิธีที่ 1] เสิร์ชด้วย "ชื่อการ์ด + รหัส" แล้วกวาดทุกอย่างที่ขวางหน้า (ไม่ใช้ Rarity)
     raw_results = _scrape_with_query(primary_query, filter_by_rarity=False)
     
-    # 🚀 [วิธีที่ 2] ถ้าวิธีแรกหาไม่เจอ ค้นหาด้วย "ชื่อการ์ดเพียวๆ" แล้วส่องหา Rarity ที่ตรงกับในระบบ
+    # เสิร์ชก๊อกสอง
     if not raw_results and target_rarity:
         raw_results = _scrape_with_query(clean_search_core, filter_by_rarity=True)
         
-    # 🚀 [วิธีสุดท้าย] ถ้ายังหาไม่เจออีก ส่งลิงก์ Fallback (ชื่อ + รหัส) ให้กดดูเอง
     if not raw_results:
         return [{
             "รูปภาพ": None, "ร้านค้า": "Dorasuta", "ชื่อที่แสดง": f"ไม่พบข้อมูล {primary_query}", 
@@ -282,10 +294,9 @@ def scrape_dorasuta(card_name, card_num, card_rarity="", box_code=""):
 # ==========================================
 # 4. ฟังก์ชันประมวลผลข้อมูล (แยกออกจากหน้า UI)
 # ==========================================
-def compile_card_prices(box_name, card_name, card_num, card_rarity): # 🎯 ลบ image_url ออกแล้ว
+def compile_card_prices(box_name, card_name, card_num, card_rarity): 
     clean_target_num = clean_card_number(card_num, box_code=box_name)
     
-    # 1. Yuyutei
     full_box_yuyutei = scrape_yuyutei_full_box(box_name)
     res_yuyutei = full_box_yuyutei.get(clean_target_num, [])
     if not res_yuyutei:
@@ -294,22 +305,20 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity): # 🎯 ล�
             "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "สินค้าหมด", "ลิงก์สินค้า": "https://yuyu-tei.jp/"
         }]
         
-    # 2. Bigweb
     res_bigweb = scrape_bigweb(card_name, card_num)
-    
-    # 3. Dorasuta (ส่ง box_code ตามที่สัญญาไว้แล้ว!)
     res_dorasuta = scrape_dorasuta(card_name, card_num, card_rarity, box_code=box_name)
     
     all_results = res_yuyutei + res_bigweb + res_dorasuta
     
-    # 🎯 คำนวณเงินบาทอย่างเดียว ไม่มีการยัด Master Image แล้ว
+    # 🎯 ยัด "รหัสการ์ด" และคำนวณเงินบาทใส่เข้าไปในทุกแถวข้อมูล
     for res in all_results:
+        res["รหัสการ์ด"] = card_num 
         res["ราคาบาทโดยประมาณ"] = f"{int(res['ราคา (เยน)'] * EXCHANGE_RATE):,} บาท" if res["ราคา (เยน)"] > 0 else "-"
 
     final_df = pd.DataFrame(all_results)
     
-    # จัดเรียงคอลัมน์ให้เป็นระเบียบ
-    cols = ["รูปภาพ", "ร้านค้า", "ชื่อที่แสดง", "สภาพการ์ด", "ราคา (เยน)", "ราคาบาทโดยประมาณ", "สถานะ", "ลิงก์สินค้า"]
+    # 🎯 จัดเรียงคอลัมน์ใหม่ เอา "รหัสการ์ด" มาคั่นกลางตามสั่ง!
+    cols = ["รูปภาพ", "ร้านค้า", "รหัสการ์ด", "ชื่อที่แสดง", "สภาพการ์ด", "ราคา (เยน)", "ราคาบาทโดยประมาณ", "สถานะ", "ลิงก์สินค้า"]
     return final_df[[c for c in cols if c in final_df.columns]]
 
 # ==========================================
