@@ -13,7 +13,7 @@ import json
 # 0. CONFIGURATIONS (ตั้งค่าตัวแปรคงที่ไว้ที่เดียว)
 # ==========================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZxMlGzqgFbyEEfEcv3HKVG5DGHOrlVWuHvI6nnSUcg5c9e3lNf4I2vU5WP8AMhT5gMr_7Oq7yOP3m/pub?gid=437587964&single=true&output=csv"
-ZENROWS_API_KEY = #st.secrets["ZENROWS_API_KEY"] 
+ZENROWS_API_KEY = st.secrets["ZENROWS_API_KEY"] 
 EXCHANGE_RATE = 0.25
 
 # ==========================================
