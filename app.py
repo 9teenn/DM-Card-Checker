@@ -340,7 +340,7 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
     res_bigweb = scrape_bigweb(card_name, card_num)
     if not res_bigweb or "ไม่พบข้อมูล" in res_bigweb[0]["ชื่อที่แสดง"]:
         # 🎯 เจอจุดพัง ยิง Report!
-        log_bug_to_sheet(box_name, card_num, "Bigweb", "API JSON ไม่ตอบกลับ หรือหาการ์ดไม่เจอ")
+        log_bug_to_sheet(box_name, card_name,card_num, "Bigweb", "API JSON ไม่ตอบกลับ หรือหาการ์ดไม่เจอ")
         
     # --- เช็คฝั่ง Dorasuta ---
     res_dorasuta = scrape_dorasuta(card_name, card_num, card_rarity, box_code=box_name)
