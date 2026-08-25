@@ -13,7 +13,7 @@ import json
 # 0. CONFIGURATIONS (ตั้งค่าตัวแปรคงที่ไว้ที่เดียว)
 # ==========================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZxMlGzqgFbyEEfEcv3HKVG5DGHOrlVWuHvI6nnSUcg5c9e3lNf4I2vU5WP8AMhT5gMr_7Oq7yOP3m/pub?gid=437587964&single=true&output=csv"
-ZENROWS_API_KEY = "87f57fba67309f332791dbb814dd096c90d2aa0e" 
+ZENROWS_API_KEY = #st.secrets["ZENROWS_API_KEY"] 
 EXCHANGE_RATE = 0.25
 
 # ==========================================
@@ -436,13 +436,16 @@ else:
             card_rarity = str(row.get('Rarity', ''))
             img_url = str(row.get('Image URL', ''))
             
+            # 🎯 พระเอกของเราอยู่ตรงนี้! สับเปลี่ยนโฟลเดอร์รูปภาพกลางอากาศ
+            high_res_img_url = img_url.replace("/100_140/", "/front/")
+            
             with st.expander(f"📌 {card_num} | {card_name} [{card_rarity}]"):
-                # แบ่งหน้าจอเป็น 2 ฝั่ง ซ้ายโชว์รูป ขวาโชว์ปุ่มเช็คราคา
                 col1, col2 = st.columns([1, 4])
                 
                 with col1:
-                    if img_url and img_url.startswith("http"):
-                        st.image(img_url, use_container_width=True)
+                    # 🎯 สั่งให้ Streamlit โชว์ลิงก์ใหม่ที่ชัดกว่าเดิม
+                    if high_res_img_url and high_res_img_url.startswith("http"):
+                        st.image(high_res_img_url, use_container_width=True)
                     else:
                         st.info("ไม่มีรูปภาพ")
                         
