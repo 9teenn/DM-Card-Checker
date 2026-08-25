@@ -14,8 +14,6 @@ import json
 # ==========================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZxMlGzqgFbyEEfEcv3HKVG5DGHOrlVWuHvI6nnSUcg5c9e3lNf4I2vU5WP8AMhT5gMr_7Oq7yOP3m/pub?gid=437587964&single=true&output=csv"
 ZENROWS_API_KEY = "87f57fba67309f332791dbb814dd096c90d2aa0e" 
-                #st.secrets["ZENROWS_API_KEY"] 
-                #"87f57fba67309f332791dbb814dd096c90d2aa0e"
 EXCHANGE_RATE = 0.25
 
 # ==========================================
