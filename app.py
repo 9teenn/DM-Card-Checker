@@ -4,13 +4,18 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, quote
 import re
+from datetime import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import json
 
 # ==========================================
 # 0. CONFIGURATIONS (ตั้งค่าตัวแปรคงที่ไว้ที่เดียว)
 # ==========================================
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZxMlGzqgFbyEEfEcv3HKVG5DGHOrlVWuHvI6nnSUcg5c9e3lNf4I2vU5WP8AMhT5gMr_7Oq7yOP3m/pub?output=csv"
-ZENROWS_API_KEY = st.secrets["ZENROWS_API_KEY"] 
-
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZxMlGzqgFbyEEfEcv3HKVG5DGHOrlVWuHvI6nnSUcg5c9e3lNf4I2vU5WP8AMhT5gMr_7Oq7yOP3m/pub?gid=437587964&single=true&output=csv"
+ZENROWS_API_KEY = "87f57fba67309f332791dbb814dd096c90d2aa0e" 
+                #st.secrets["ZENROWS_API_KEY"] 
+                #"87f57fba67309f332791dbb814dd096c90d2aa0e"
 EXCHANGE_RATE = 0.25
 
 # ==========================================
@@ -35,6 +40,29 @@ def load_database(url):
     except Exception as e:
         st.error(f"ระบบฐานข้อมูลขัดข้อง: {e}")
         return pd.DataFrame()
+
+def log_bug_to_sheet(box_name, card_num, store_name, reason):
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        
+        # 🎯 เปลี่ยนจากการอ่านไฟล์ มาเป็นการดึงข้อความจาก Secrets แล้วแปลงกลับเป็น Dictionary
+        creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        
+        client = gspread.authorize(creds)
+        
+        sheet = client.open("DM_Master_Database").worksheet("Bug_Report")
+        
+        # ประทับเวลาปัจจุบัน
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # จัดเรียงข้อมูลให้ตรงกับคอลัมน์แล้วยิงขึ้น Sheet
+        row_data = [timestamp, box_name, card_num, store_name, reason]
+        sheet.append_row(row_data)
+        
+    except Exception as e:
+        print(f"ระบบ Report Bug ทำงานล้มเหลว: {e}")
+        st.error(f"⚠️ แจ้งเตือนจากระบบ Report Bug: {e}")
 
 # ==========================================
 # 2. ฟังก์ชันผู้ช่วย
@@ -297,6 +325,7 @@ def scrape_dorasuta(card_name, card_num, card_rarity="", box_code=""):
 def compile_card_prices(box_name, card_name, card_num, card_rarity): 
     clean_target_num = clean_card_number(card_num, box_code=box_name)
     
+    # --- เช็คฝั่ง Yuyutei ---
     full_box_yuyutei = scrape_yuyutei_full_box(box_name)
     res_yuyutei = full_box_yuyutei.get(clean_target_num, [])
     if not res_yuyutei:
@@ -304,10 +333,22 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
             "รูปภาพ": None, "ร้านค้า": "Yuyutei", "ชื่อที่แสดง": f"ไม่พบรหัส {clean_target_num}", 
             "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "สินค้าหมด", "ลิงก์สินค้า": "https://yuyu-tei.jp/"
         }]
+        # 🎯 เจอจุดพัง ยิง Report เลย!
+        log_bug_to_sheet(box_name, card_num, "Yuyutei", "ดึงจากกล่องแบบ Full Box ไม่เจอ อาจจะเลขรหัสเพี้ยน")
         
+    # --- เช็คฝั่ง Bigweb ---
     res_bigweb = scrape_bigweb(card_name, card_num)
+    if not res_bigweb or "ไม่พบข้อมูล" in res_bigweb[0]["ชื่อที่แสดง"]:
+        # 🎯 เจอจุดพัง ยิง Report!
+        log_bug_to_sheet(box_name, card_num, "Bigweb", "API JSON ไม่ตอบกลับ หรือหาการ์ดไม่เจอ")
+        
+    # --- เช็คฝั่ง Dorasuta ---
     res_dorasuta = scrape_dorasuta(card_name, card_num, card_rarity, box_code=box_name)
+    if not res_dorasuta or "ไม่พบข้อมูล" in res_dorasuta[0]["ชื่อที่แสดง"]:
+        # 🎯 เจอจุดพัง ยิง Report!
+        log_bug_to_sheet(box_name, card_num, "Dorasuta", "ZenRows ไม่เจอข้อมูลทั้ง 2 ก๊อก (เว้นวรรคอาจจะยังไม่พอ)")
     
+    # รวมข้อมูลทั้งหมด...
     all_results = res_yuyutei + res_bigweb + res_dorasuta
     
     # 🎯 ยัด "รหัสการ์ด" และคำนวณเงินบาทใส่เข้าไปในทุกแถวข้อมูล
@@ -322,7 +363,7 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
     return final_df[[c for c in cols if c in final_df.columns]]
 
 # ==========================================
-# 5. ส่วนจัดการ UI (สะอาดและอ่านง่ายขึ้นมาก)
+# 5. ส่วนจัดการ UI
 # ==========================================
 st.set_page_config(page_title="Card Price Checker", layout="wide")
 
@@ -335,63 +376,95 @@ def go_back_to_home():
 db_df = load_database(SHEET_CSV_URL)
 
 if st.session_state.selected_box is None:
-    st.title("📦 คลังข้อมูล Duel Masters")
+    st.title("คลังข้อมูล Duel Masters")
     st.markdown("เลือกชุดการ์ดเพื่อตรวจสอบราคา")
     
     if not db_df.empty and 'Box Name' in db_df.columns:
         boxes = db_df['Box Name'].dropna().unique().tolist()
-        cols = st.columns(4)
-        for idx, box in enumerate(boxes):
-            with cols[idx % 4]:
-                if st.button(f"🃏 {box}", use_container_width=True):
-                    st.session_state.selected_box = box
-                    st.rerun()
+        
+        # ช่องค้นหา Box Set
+        search_box = st.text_input("🔍 ค้นหาชื่อ Box Set (เช่น EX3, DM25):")
+        if search_box:
+            boxes = [b for b in boxes if search_box.lower() in b.lower()]
+            
+        # จัดกลุ่ม Box ตามปี (เช่น 'DM26', 'DM25')
+        year_groups = {}
+        for box in boxes:
+            year_prefix = box.split('-')[0] 
+            if year_prefix not in year_groups:
+                year_groups[year_prefix] = []
+            year_groups[year_prefix].append(box)
+            
+        # เรียงปีจากมากไปน้อย (DM26 จะอยู่ซ้ายสุด ตามด้วย DM25)
+        sorted_years = sorted(year_groups.keys(), reverse=True)
+        
+        if sorted_years:
+            # สร้างคอลัมน์ตามจำนวนปีที่พบ
+            cols = st.columns(len(sorted_years))
+            for i, year in enumerate(sorted_years):
+                with cols[i]:
+                    st.markdown(f"**🗓️ ซีรีส์ {year}**")
+                    for box in year_groups[year]:
+                        if st.button(f"📦 {box}", use_container_width=True):
+                            st.session_state.selected_box = box
+                            st.rerun()
+        else:
+            st.info("ไม่พบ Box Set ที่ค้นหา")
     else:
         st.warning("กำลังโหลดฐานข้อมูล หรือไม่พบคอลัมน์ 'Box Name'")
+        
 else:
+    # โซนแสดงผลเมื่อกดเลือกกล่องแล้ว
     st.button("⬅️ ย้อนกลับ", on_click=go_back_to_home)
     st.title(f"📖 ชุดการ์ด: {st.session_state.selected_box}")
     
-    cards_in_box = db_df[db_df['Box Name'] == st.session_state.selected_box]
-    search_query = st.text_input("🔍 ค้นหาการ์ด (รหัสหรือชื่อ):")
-    
-    if search_query:
-        filtered_cards = cards_in_box[
-            cards_in_box['Card ID'].str.contains(search_query, case=False, na=False) | 
-            cards_in_box['Card Name JP'].str.contains(search_query, case=False, na=False)
-        ]
+    # 🎯 เพิ่มตัวเช็คกันเหนียว ป้องกันการเกิด KeyError
+    if 'Box Name' not in db_df.columns:
+        st.error("❌ ฐานข้อมูลผิดพลาด: ไม่พบคอลัมน์ 'Box Name' กรุณาตรวจสอบลิงก์ CSV")
     else:
-        filtered_cards = cards_in_box
+        # 1. กรองข้อมูลจาก Database ให้เหลือแค่กล่องที่เลือก
+        box_data = db_df[db_df['Box Name'] == st.session_state.selected_box]
         
-    st.dataframe(filtered_cards[['Card ID', 'Card Name JP', 'Rarity']], hide_index=True, use_container_width=True, height=250)
-    
-    st.markdown("---")
-    st.subheader("เปรียบเทียบราคา")
-    
-    card_options = filtered_cards['Card ID'] + " - " + filtered_cards['Card Name JP']
-    if not card_options.empty:
-        selected_card_display = st.selectbox("🎯 เลือกการ์ดที่ต้องการเช็คราคา:", card_options)
-        selected_id = selected_card_display.split(" - ")[0]
-        selected_row = filtered_cards[filtered_cards['Card ID'] == selected_id].iloc[0]
-    
-        if st.button("🚀 ตรวจสอบราคาทั้ง 3 เว็บไซต์", type="primary"):
-            with st.spinner("กำลังดึงข้อมูลเทียบราคา..."):
-                target_box = st.session_state.selected_box
-                target_name = str(selected_row['Card Name JP']).strip()
-                target_num = str(selected_row['Card Number']).strip()
-                target_rarity = str(selected_row['Rarity']).strip()
+        if box_data.empty:
+            st.warning("ยังไม่มีข้อมูลการ์ดในชุดนี้ (อาจต้องรันอัปเดต Database ก่อน)")
+        else:
+            # 2. เพิ่มช่องค้นหาการ์ดในกล่อง
+            search_card = st.text_input(f"🔍 ค้นหาการ์ดใน {st.session_state.selected_box} (พิมพ์ชื่อ หรือ รหัส):")
+        
+        # 3. วนลูปสร้าง Expander โชว์การ์ดทีละใบ
+        for idx, row in box_data.iterrows():
+            card_num = str(row.get('Card Number', ''))
+            card_name = str(row.get('Card Name JP', ''))
+            card_rarity = str(row.get('Rarity', ''))
+            img_url = str(row.get('Image URL', ''))
+            
+            with st.expander(f"📌 {card_num} | {card_name} [{card_rarity}]"):
+                # แบ่งหน้าจอเป็น 2 ฝั่ง ซ้ายโชว์รูป ขวาโชว์ปุ่มเช็คราคา
+                col1, col2 = st.columns([1, 4])
                 
-                # 🎯 ไม่ต้องอ้างอิง Image URL จาก row อีกแล้ว ส่งแค่ 4 ค่าเพียวๆ ไปเลย
-                final_df = compile_card_prices(target_box, target_name, target_num, target_rarity)
-                
-                st.success("รวบรวมข้อมูลเสร็จสิ้น!")
-                st.dataframe(
-                    final_df,
-                    column_config={
-                        "รูปภาพ": st.column_config.ImageColumn("ภาพประกอบ"),
-                        "ลิงก์สินค้า": st.column_config.LinkColumn("หน้าร้านค้า")
-                    },
-                    hide_index=True, use_container_width=True
-                )
-    else:
-        st.info("ไม่พบการ์ดที่ค้นหา")
+                with col1:
+                    if img_url and img_url.startswith("http"):
+                        st.image(img_url, use_container_width=True)
+                    else:
+                        st.info("ไม่มีรูปภาพ")
+                        
+                with col2:
+                    if st.button(f"📊 เช็คราคาล่าสุด", key=f"btn_{st.session_state.selected_box}_{card_num}"):
+                        with st.spinner("กำลังเจาะระบบดึงราคา..."):
+                            df_prices = compile_card_prices(
+                                box_name=st.session_state.selected_box, 
+                                card_name=card_name, 
+                                card_num=card_num, 
+                                card_rarity=card_rarity
+                            )
+                            
+                            # โชว์ตารางแบบสวยงาม รองรับการแสดงผลรูปภาพและลิงก์
+                            st.dataframe(
+                                df_prices,
+                                column_config={
+                                    "รูปภาพ": st.column_config.ImageColumn("รูปภาพ"),
+                                    "ลิงก์สินค้า": st.column_config.LinkColumn("ลิงก์สินค้า")
+                                },
+                                hide_index=True,
+                                use_container_width=True
+                            )
