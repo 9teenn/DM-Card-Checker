@@ -41,7 +41,7 @@ def load_database(url):
         st.error(f"ระบบฐานข้อมูลขัดข้อง: {e}")
         return pd.DataFrame()
 
-def log_bug_to_sheet(box_name, card_num, store_name, reason):
+def log_bug_to_sheet(box_name, card_num, card_name, store_name, reason):
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         
@@ -57,7 +57,7 @@ def log_bug_to_sheet(box_name, card_num, store_name, reason):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         # จัดเรียงข้อมูลให้ตรงกับคอลัมน์แล้วยิงขึ้น Sheet
-        row_data = [timestamp, box_name, card_num, store_name, reason]
+        row_data = [timestamp, box_name, card_num, card_name, store_name, reason]
         sheet.append_row(row_data)
         
     except Exception as e:
