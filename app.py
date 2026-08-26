@@ -160,7 +160,7 @@ def scrape_yuyutei_full_box(box_code):
 @st.cache_data(ttl=300)
 def scrape_bigweb(card_name, card_num):
     bw_target_num = card_num.replace('(', '').replace(')', '').strip()
-    core_name = card_name.split('＜')[0].split('(')[0].strip()
+    core_name = card_name.split('＜')[0].split('(')[0].replace('～', '').replace('~', '').strip()
     encoded_kw = quote(core_name)
     base_search_url = f"https://www.bigweb.co.jp/ja/products/dm/list?name={encoded_kw}"
     headers = {"User-Agent": "Mozilla/5.0"}
