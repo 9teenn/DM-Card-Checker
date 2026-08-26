@@ -332,7 +332,7 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
             "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "สินค้าหมด", "ลิงก์สินค้า": "https://yuyu-tei.jp/"
         }]
         # 🎯 เจอจุดพัง ยิง Report เลย!
-        log_bug_to_sheet(box_name, card_num, "Yuyutei", "ดึงจากกล่องแบบ Full Box ไม่เจอ อาจจะเลขรหัสเพี้ยน")
+        log_bug_to_sheet(box_name, card_name, card_num, "Yuyutei", "ดึงจากกล่องแบบ Full Box ไม่เจอ อาจจะเลขรหัสเพี้ยน")
         
     # --- เช็คฝั่ง Bigweb ---
     res_bigweb = scrape_bigweb(card_name, card_num)
@@ -344,7 +344,7 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
     res_dorasuta = scrape_dorasuta(card_name, card_num, card_rarity, box_code=box_name)
     if not res_dorasuta or "ไม่พบข้อมูล" in res_dorasuta[0]["ชื่อที่แสดง"]:
         # 🎯 เจอจุดพัง ยิง Report!
-        log_bug_to_sheet(box_name, card_num, "Dorasuta", "ZenRows ไม่เจอข้อมูลทั้ง 2 ก๊อก (เว้นวรรคอาจจะยังไม่พอ)")
+        log_bug_to_sheet(box_name, card_name, card_num, "Dorasuta", "ZenRows ไม่เจอข้อมูลทั้ง 2 ก๊อก (เว้นวรรคอาจจะยังไม่พอ)")
     
     # รวมข้อมูลทั้งหมด...
     all_results = res_yuyutei + res_bigweb + res_dorasuta
