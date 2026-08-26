@@ -188,7 +188,7 @@ def scrape_yuyutei_full_box(box_code):
                 "ร้านค้า": "Yuyutei", 
                 "ชื่อที่แสดง": card_name,
                 "สภาพการ์ด": classify_condition(card_name),
-                "ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)": int(price_digits), 
+                "ราคา (เยน)": int(price_digits), 
                 "สถานะ": stock_status, 
                 "ลิงก์สินค้า": card_link
             }
@@ -249,7 +249,7 @@ def scrape_bigweb(card_name, card_num):
                         "ร้านค้า": "Bigweb", 
                         "ชื่อที่แสดง": name,
                         "สภาพการ์ด": classify_condition(name),
-                        "ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)": int(price), 
+                        "ราคา (เยน)": int(price), 
                         "สถานะ": stock_status,
                         "ลิงก์สินค้า": specific_link
                     })
@@ -257,13 +257,13 @@ def scrape_bigweb(card_name, card_num):
         if not raw_results:
              return [{
                  "รูปภาพ": None, "ร้านค้า": "Bigweb", "ชื่อที่แสดง": f"ไม่พบข้อมูล {card_name} ({bw_target_num})", 
-                 "สภาพการ์ด": "-", "ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)": 0, "สถานะ": "สินค้าหมด", "ลิงก์สินค้า": base_search_url
+                 "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "สินค้าหมด", "ลิงก์สินค้า": base_search_url
              }]       
         return raw_results
     except Exception as e:
         return [{
             "รูปภาพ": None, "ร้านค้า": "Bigweb (Fallback)", "ชื่อที่แสดง": f"Error: {e}",
-            "สภาพการ์ด": "-", "ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)": 0, "สถานะ": "ดึงข้อมูลล้มเหลว", "ลิงก์สินค้า": base_search_url
+            "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "ดึงข้อมูลล้มเหลว", "ลิงก์สินค้า": base_search_url
         }]
 
 @st.cache_data(ttl=300)
@@ -280,7 +280,7 @@ def scrape_dorasuta(card_name, card_num, card_rarity="", box_code=""):
     fallback_url = f"https://dorasuta.jp/duelmasters/product-list?kw={encoded_primary}"
     
     if not ZENROWS_API_KEY or ZENROWS_API_KEY == "YOUR_ZENROWS_API_KEY":
-        return [{"รูปภาพ": None, "ร้านค้า": "Dorasuta", "ชื่อที่แสดง": "API Key Error", "สภาพการ์ด": "-", "ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)": 0, "สถานะ": "ตรวจสอบผ่านเว็บ", "ลิงก์สินค้า": fallback_url}]
+        return [{"รูปภาพ": None, "ร้านค้า": "Dorasuta", "ชื่อที่แสดง": "API Key Error", "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "ตรวจสอบผ่านเว็บ", "ลิงก์สินค้า": fallback_url}]
 
     api_url = "https://api.zenrows.com/v1/"
 
@@ -339,7 +339,7 @@ def scrape_dorasuta(card_name, card_num, card_rarity="", box_code=""):
                     results.append({
                         "รูปภาพ": None, # 🎯 ไม่ดึงรูปภาพของ Dorasuta
                         "ร้านค้า": "Dorasuta", "ชื่อที่แสดง": full_name,
-                        "สภาพการ์ด": classify_condition(full_name), "ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)": price,
+                        "สภาพการ์ด": classify_condition(full_name), "ราคา (เยน)": price,
                         "สถานะ": stock_status, "ลิงก์สินค้า": link
                     })
             return results
@@ -357,7 +357,7 @@ def scrape_dorasuta(card_name, card_num, card_rarity="", box_code=""):
     if not raw_results:
         return [{
             "รูปภาพ": None, "ร้านค้า": "Dorasuta", "ชื่อที่แสดง": f"ไม่พบข้อมูล {primary_query}", 
-            "สภาพการ์ด": "-", "ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)": 0, "สถานะ": "สินค้าหมด", 
+            "สภาพการ์ด": "-", "ราคา (เยน)": 0, "สถานะ": "สินค้าหมด", 
             "ลิงก์สินค้า": fallback_url
         }]
         
