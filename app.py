@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, quote
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
@@ -52,7 +52,8 @@ def log_bug_to_sheet(box_name, card_num, card_name, store_name, reason):
         sheet = client.open("DM_Master_Database").worksheet("Bug_Report")
         
         # ประทับเวลาปัจจุบัน
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        thai_time = datetime.utcnow() + timedelta(hours=7)
+        timestamp = thai_time.strftime("%Y-%m-%d %H:%M:%S")
         
         # จัดเรียงข้อมูลให้ตรงกับคอลัมน์แล้วยิงขึ้น Sheet
         row_data = [timestamp, box_name, card_num, card_name, store_name, reason]
