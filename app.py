@@ -409,10 +409,10 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
         # คำนวณเงินบาทจากราคาที่ปัดเศษแล้ว
         res["ราคาบาทโดยประมาณ"] = f"{int(rounded_yen * EXCHANGE_RATE):,} บาท" if rounded_yen > 0 else "-"
 
-final_df = pd.DataFrame(all_results)
+        final_df = pd.DataFrame(all_results)
     
-    # 🎯 1. ร่ายคาถาเปลี่ยนชื่อคอลัมน์ใน DataFrame ก่อน!
-    final_df.rename(columns={"ราคา (เยน)": "ราคาเยน (ปัดเศษแล้วนะจ๊ะ)"}, inplace=True)
+        # 🎯 1. ร่ายคาถาเปลี่ยนชื่อคอลัมน์ใน DataFrame ก่อน!
+        final_df.rename(columns={"ราคา (เยน)": "ราคาเยน (ปัดเศษแล้วนะจ๊ะ)"}, inplace=True)
     
     # 🎯 2. ตัด "รูปภาพ" ออก และใช้ชื่อคอลัมน์ใหม่ที่เพิ่งตั้งในรายการจัดเรียง
     cols = [
