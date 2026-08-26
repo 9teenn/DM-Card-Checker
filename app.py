@@ -412,7 +412,7 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
     final_df = pd.DataFrame(all_results)
     
     # 🎯 จัดเรียงคอลัมน์ใหม่ เอา "รหัสการ์ด" มาคั่นกลางตามสั่ง!
-    cols = ["รูปภาพ", "ร้านค้า", "รหัสการ์ด", "ชื่อที่แสดง", "สภาพการ์ด", "ราคา (เยน)", "ราคาบาทโดยประมาณ", "สถานะ", "ลิงก์สินค้า"]
+    cols = ["ร้านค้า", "รหัสการ์ด", "ชื่อที่แสดง", "สภาพการ์ด", "ราคาเยน(ปัดเศษให้แล้วนะจ๊ะ)", "ราคาบาทโดยประมาณ", "สถานะ", "ลิงก์สินค้า"]
     return final_df[[c for c in cols if c in final_df.columns]]
 
 # ==========================================
@@ -525,7 +525,6 @@ else:
                             st.dataframe(
                                 df_prices,
                                 column_config={
-                                    "รูปภาพ": st.column_config.ImageColumn("รูปภาพ"),
                                     "ลิงก์สินค้า": st.column_config.LinkColumn("ลิงก์สินค้า")
                                 },
                                 hide_index=True,
