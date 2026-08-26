@@ -78,6 +78,51 @@ def clean_card_number(raw_num, box_code=""):
         cleaned = re.split(box_code, cleaned, flags=re.IGNORECASE)[-1]
     return cleaned.strip()
 
+def calculate_tiered_price(price):
+    if price <= 0:
+        return 0
+        
+    # ต่ำกว่า 100 เยน -> ปัดเป็น 100
+    if price < 100:
+        return 100 
+        
+    # หลักร้อย (100 - 999) -> ปัดทีละ 50 หรือ 100
+    elif price < 1000:
+        base = (price // 100) * 100
+        remainder = price % 100
+        
+        if remainder == 0:
+            return price
+        elif remainder <= 50:
+            return base + 50          
+        else:
+            return base + 100         
+            
+    # หลักพัน (1,000 - 9,999) -> ปัดทีละ 500 หรือ 1,000
+    elif price < 10000:
+        base = (price // 1000) * 1000
+        remainder = price % 1000
+        
+        if remainder == 0:
+            return price
+        elif remainder <= 500:
+            return base + 500         
+        else:
+            return base + 1000        
+            
+    # หลักหมื่นและหลักแสน (10,000 เยนขึ้นไป) -> ล็อกการปัดทีละ 5,000 หรือ 10,000
+    else:
+        # ใช้หลักหมื่นเป็นฐานคำนวณ แม้ราคาจะทะลุหลักแสนก็ตาม
+        base = (price // 10000) * 10000
+        remainder = price % 10000
+        
+        if remainder == 0:
+            return price
+        elif remainder <= 5000:
+            return base + 5000         # เช่น 12,000 -> 15,000 / 112,000 -> 115,000
+        else:
+            return base + 10000        # เช่น 16,000 -> 20,000 / 116,000 -> 120,000
+
 # ==========================================
 # 3. ระบบ Scraping
 # ==========================================
@@ -350,10 +395,19 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
     # รวมข้อมูลทั้งหมด...
     all_results = res_yuyutei + res_bigweb + res_dorasuta
     
-    # 🎯 ยัด "รหัสการ์ด" และคำนวณเงินบาทใส่เข้าไปในทุกแถวข้อมูล
+    # 🎯 ยัด "รหัสการ์ด", "ราคาปัดเศษ" และ "คำนวณเงินบาท"
     for res in all_results:
         res["รหัสการ์ด"] = card_num 
-        res["ราคาบาทโดยประมาณ"] = f"{int(res['ราคา (เยน)'] * EXCHANGE_RATE):,} บาท" if res["ราคา (เยน)"] > 0 else "-"
+        
+        # ดึงราคาเยนดั้งเดิมมาเข้าเครื่องปัดเศษ
+        original_yen = res['ราคา (เยน)']
+        rounded_yen = calculate_tiered_price(original_yen)
+        
+        # แทนที่ราคาเยนเดิมด้วยราคาปัดเศษ (หรือถ้านายอยากเก็บไว้เปรียบเทียบ ก็สร้างคอลัมน์ใหม่ได้)
+        res['ราคา (เยน)'] = rounded_yen 
+        
+        # คำนวณเงินบาทจากราคาที่ปัดเศษแล้ว
+        res["ราคาบาทโดยประมาณ"] = f"{int(rounded_yen * EXCHANGE_RATE):,} บาท" if rounded_yen > 0 else "-"
 
     final_df = pd.DataFrame(all_results)
     
