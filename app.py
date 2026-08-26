@@ -426,15 +426,16 @@ else:
         if box_data.empty:
             st.warning("ยังไม่มีข้อมูลการ์ดในชุดนี้ (อาจต้องรันอัปเดต Database ก่อน)")
         else:
-            # 2. เพิ่มช่องค้นหาการ์ดในกล่อง
-        search_card = st.text_input(f"🔍 ค้นหาการ์ดใน {st.session_state.selected_box} (พิมพ์ชื่อ หรือ รหัส):")
-        if search_card:
-            box_data = box_data[
-                # 🎯 เติม regex=False ป้องกันแอปพังเวลาลูกค้าพิมพ์เครื่องหมายวงเล็บหรืออักขระพิเศษ
-                box_data['Card Name JP'].str.contains(search_card, case=False, regex=False, na=False) |
-                box_data['Card Number'].str.contains(search_card, case=False, regex=False, na=False)
-            ]
-        
+            # 🎯 ดันโค้ดเข้ามา 4 เคาะ ให้อยู่ "ข้างใน" else
+            search_card = st.text_input(f"🔍 ค้นหาการ์ดใน {st.session_state.selected_box} (พิมพ์ชื่อ หรือ รหัส):")
+            
+            if search_card:
+                box_data = box_data[
+                    box_data['Card Name JP'].str.contains(search_card, case=False, regex=False, na=False) |
+                    box_data['Card Number'].str.contains(search_card, case=False, regex=False, na=False)
+                ]
+                
+            st.markdown(f"พบการ์ดทั้งหมด **{len(box_data)}** ใบ")
         # 3. วนลูปสร้าง Expander โชว์การ์ดทีละใบ
         for idx, row in box_data.iterrows():
             card_num = str(row.get('Card Number', ''))
