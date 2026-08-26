@@ -395,32 +395,34 @@ def compile_card_prices(box_name, card_name, card_num, card_rarity):
     # รวมข้อมูลทั้งหมด...
     all_results = res_yuyutei + res_bigweb + res_dorasuta
     
-    # 🎯 ยัด "รหัสการ์ด", "ราคาปัดเศษ" และ "คำนวณเงินบาท"
+    # 🎯 1. ใส่รหัสการ์ด คำนวณเงินบาท และทำการ "ปัดเศษ" (Tiered Rounding)
     for res in all_results:
         res["รหัสการ์ด"] = card_num 
         
-        # ดึงราคาเยนดั้งเดิมมาเข้าเครื่องปัดเศษ
-        original_yen = res['ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)']
-        rounded_yen = calculate_tiered_price(original_yen)
+        # ดึงราคาเดิมมาเข้าฟังก์ชันปัดเศษ (ถ้าใส่ calculate_tiered_price ไว้แล้ว)
+        original_yen = res.get("ราคา (เยน)", 0)
         
-        # แทนที่ราคาเยนเดิมด้วยราคาปัดเศษ (หรือถ้านายอยากเก็บไว้เปรียบเทียบ ก็สร้างคอลัมน์ใหม่ได้)
-        res['ราคาเยน (ปัดเศษให้แล้วนะจ๊ะ)'] = rounded_yen 
-        
-        # คำนวณเงินบาทจากราคาที่ปัดเศษแล้ว
+        try:
+            rounded_yen = calculate_tiered_price(original_yen)
+        except NameError:
+            # กันเหนียว: ถ้านายยังไม่ได้ใส่ฟังก์ชัน calculate_tiered_price ให้ใช้ราคาเดิมไปก่อน
+            rounded_yen = original_yen
+            
+        res["ราคา (เยน)"] = rounded_yen
         res["ราคาบาทโดยประมาณ"] = f"{int(rounded_yen * EXCHANGE_RATE):,} บาท" if rounded_yen > 0 else "-"
 
-        final_df = pd.DataFrame(all_results)
+    final_df = pd.DataFrame(all_results)
     
-        # 🎯 1. ร่ายคาถาเปลี่ยนชื่อคอลัมน์ใน DataFrame ก่อน!
-        final_df.rename(columns={"ราคา (เยน)": "ราคาเยน (ปัดเศษแล้วนะจ๊ะ)"}, inplace=True)
+    # 🎯 2. เปลี่ยนชื่อคอลัมน์อย่างเป็นทางการ
+    final_df.rename(columns={"ราคา (เยน)": "ราคาเยน (ปัดเศษแล้วนะจ๊ะ)"}, inplace=True)
     
-    # 🎯 2. ตัด "รูปภาพ" ออก และใช้ชื่อคอลัมน์ใหม่ที่เพิ่งตั้งในรายการจัดเรียง
+    # 🎯 3. ระบุชื่อคอลัมน์ให้ตรงเป๊ะ 100% (ลบรูปภาพออกแล้ว)
     cols = [
         "ร้านค้า", 
         "รหัสการ์ด", 
         "ชื่อที่แสดง", 
         "สภาพการ์ด", 
-        "ราคาเยน (ปัดเศษแล้วนะจ๊ะ)", # ใช้ชื่อใหม่ตรงนี้ได้เลย
+        "ราคาเยน (ปัดเศษแล้วนะจ๊ะ)", 
         "ราคาบาทโดยประมาณ", 
         "สถานะ", 
         "ลิงก์สินค้า"
