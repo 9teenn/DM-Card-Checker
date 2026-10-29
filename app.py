@@ -81,36 +81,18 @@ def clean_card_number(raw_num, box_code=""):
 def calculate_tiered_price(price):
     if price <= 0:
         return 0
-        
-    # ต่ำกว่า 100 เยน -> ปัดเป็น 100 เป็นราคาขั้นต่ำ
-    if price < 100:
-        return 100 
-        
-    # หลักร้อย (100 - 999 เยน) -> ปัดทีละ 50 หรือ 100
-    elif price < 1000:
-        base = (price // 100) * 100
-        remainder = price % 100
-        
-        if remainder == 0:
-            return price
-        elif remainder <= 50:
-            return base + 50          
-        else:
-            return base + 100         
-            
-    # ตั้งแต่หลักพันเป็นต้นไป (1,000+ เยน รวมถึงหลักแสน) -> ปัดทีละ 500 หรือ 1,000
-    else:
-        # ใช้ฐาน 1,000 เป็นตัวตั้ง แม้ราคาจะทะลุหลักหมื่นหรือแสน
-        base = (price // 1000) * 1000
-        remainder = price % 1000
-        
-        if remainder == 0:
-            return price
-        elif remainder <= 500:
-            return base + 500         # เช่น 17,200 -> 17,500 
-        else:
-            return base + 1000        # เช่น 17,800 -> 18,000 (ตามที่ลูกค้าต้องการเป๊ะ!)
 
+    # ต่ำกว่า 100 เยน -> ปัดเป็น 100
+    if price < 100:
+        return 100
+
+    # หลักร้อยและหลักพัน (100 - 9,999) -> ปัดที่หลักสิบ
+    elif price < 10000:
+        return (price + 50) // 100 * 100
+
+    # 10,000 ขึ้นไป -> คงราคาเดิม
+    return price
+    
 # ==========================================
 # 3. ระบบ Scraping
 # ==========================================
